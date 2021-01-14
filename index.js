@@ -1,21 +1,21 @@
-
 export default class GlobalModel{
     constructor(
-        parrentPropertyKey, key = "property", initialState = undefined
+        parrentPropertyKey,
+        key = "property",
+        initialState,
+        structure
     ){
-        // Уникальный ключ модели
+        // console.log("INIT", parrentPropertyKey,
+        // key,
+        // initialState,
+        // structure)
+        // Уникальный ключ
+        this._propertyKey = parrentPropertyKey ? `${parrentPropertyKey}/${key}` : key;
         
-        if(parrentPropertyKey){
-            this._propertyKey = `${parrentPropertyKey}/${key}`;
-
-        }else{
-            this._propertyKey = key;
-        }
-        
-        // Изначальное состояние модели
+        // Изначальное состояние
         this._initialState = initialState;
         
-        // Методы управления моделью
+        // Методы управления
         this._actions = {
             reset: {
                 type: `RESET`,
@@ -46,185 +46,178 @@ export default class GlobalModel{
                 }
             },
         }
-    }
+        
+        // Структура
+        this._structure = structure;
 
-    oftype = (value) => {
-        if(value){
-            if(value._propertyKey) return "model";
-        }
-    
-        if(typeof value === "object"){
-            if(value.constructor === Array){
-                return "array";
+        // Значение
+        this._value = this._initialState;
 
-            }else{
-                return "object";
-            }
-
-        }else{
-            return typeof value;
-        }
-    }
-
-    // Возвращает текущее значение модели
-    reducer = (state, action)=>{
-        let nextValue;
-        let _propertyKey;
-        let _actions;
-
-        if(this.oftype(state) === "model"){
-            nextValue = state._value;
-            _propertyKey = state._propertyKey;
-            _actions = state._actions;
-
-        }else{
-            state = this._initialState;
-            nextValue = state;
-            _propertyKey = this._propertyKey;
-            _actions = this._actions;
-        }
-
-        if(_propertyKey === action.propertyKey){
-            switch(action.type){
-                case _actions.reset.type:
-                    nextValue = this._initialState;
-                break;
-    
-                case _actions.update.type:
-                    nextValue = action.value;
-                    console.log(_propertyKey, nextValue);
-                break;
-    
-                case _actions.toggle.type:
-                    nextValue = !state;
-                break;
-            }
-        }
-
-
-        let result;
-
-        switch(this.oftype(state)){
-            case "model":
-                if(state.reducer){
-                    result = state.reducer(undefined, action);
-                    
-                }else{
-                    result = Object.keys(state).reduce(
-                        (result, key) => {
-                            if(key === "_propertyKey"
-                                || key === "_initialState"
-                                || key === "_actions"
-                                || key === "_value"
-                                || key === "reducer"
-                                || key === "oftype"
-                                || key === "_timestamp"){
-                                    return result;
-                                }
-                                
-                            return Object.assign(
-                                result,
-                                {
-                                    [key]: this.reducer(
-                                        state[key],
-                                        action
-                                    ),
-                                }
+        if(typeof this._initialState === "object"){
+            if(this._initialState.constructor == Object){
+                // Если отсутствует чёткая структура, то берём за основу this._initialState
+                if(!this._structure){
+                    for(let key in this._initialState){
+                        if(!(this._initialState[key] instanceof GlobalModel)){
+                            this[key] = new GlobalModel(
+                                this._propertyKey,
+                                key,
+                                this._initialState[key]
                             );
-                        }, {
-                            _propertyKey: state._propertyKey,
-                            _initialState: state._initialState,
-                            _actions: state._actions,
-                            _value: nextValue,
-                            _timestamp: new Date().toLocaleTimeString()
+        
+                        }else{
+                            this[key] = this._initialState[key];
                         }
-                    );
+                    }
 
-                    switch(this.oftype(result._value)){
-                        case "object":
-                            result._value = Object.keys(result._value).reduce(
-                                (value, key) => {
-                                    return Object.assign(
-                                        value,
-                                        {
-                                            [key]: result[key]._value,
-                                        }
-                                    );
-                                }, result._value 
+                }else{
+                    for(let key in this._structure){
+                        // В структуре не может быть экзмпляра GlobalModel - проверки не будет
+                        this[key] = new GlobalModel(
+                            this._propertyKey,
+                            key,
+                            // this._structure[key] - дефолтное значение
+                            (this._initialState[key] === undefined) ?
+                                 this._structure[key] : this._initialState[key],
+                            this._structure[key]
+                        );
+                    }
+                }
+
+            }else if(this._initialState.constructor == Array){
+                for(let key in this._initialState){
+                    if(!(this._initialState[key] instanceof GlobalModel)){
+                        this[key] = new GlobalModel(
+                            this._propertyKey,
+                            key,
+                            this._initialState[key],
+                            this._structure ? this._structure[0] : undefined
+                        );
+    
+                    }else{
+                        this[key] = this._initialState[key];
+                    }
+                }
+            }
+        }
+    }
+
+    // Возвращает общее состояние модели
+    reducer = (state = this, action) => {
+        let newState = Object.assign({}, state);
+        let newValue;
+
+        if(action){
+            if(state._propertyKey === action.propertyKey){
+                switch(action.type){
+                    case state._actions.reset.type:
+                        newValue = state._initialState;
+                    break;
+        
+                    case state._actions.update.type:
+                        newValue = action.value;
+                    break;
+        
+                    case state._actions.toggle.type:
+                        newValue = !state._value;
+                    break;
+                }
+            }
+        }
+        
+        switch(typeof newState._value){
+            case "object":
+                if(newValue !== undefined){
+                    if(typeof newValue === "object"){
+                        return new GlobalModel(
+                            false,
+                            newState._propertyKey,
+                            newValue,
+                            newState._structure,
+                        ).reducer();
+                    }
+
+                }else{
+                    if(!newState._structure){
+                        Object.keys(newState._initialState).forEach(key => {
+                            newState[key] = newState[key].reducer(newState[key], action);
+                        });
+    
+                        return Object.assign(
+                            newState,
+                            {
+                                _value:  Object.keys(newState._initialState).reduce(
+                                    (result, key) => {
+                                        return Object.assign(
+                                            result,
+                                            {
+                                                [key]: newState[key]._value
+                                            }
+                                        );
+                                    }, {}
+                                )
+                            }
+                        );
+
+                    }else{
+                        if(this._initialState.constructor == Object){
+                            Object.keys(newState._structure).forEach(key => {
+                                newState[key] = newState[key].reducer(newState[key], action);
+                            });
+        
+                            return Object.assign(
+                                newState,
+                                {
+                                    _value:  Object.keys(newState._structure).reduce(
+                                        (result, key) => {
+                                            return Object.assign(
+                                                result,
+                                                {
+                                                    [key]: newState[key]._value
+                                                }
+                                            );
+                                        }, {}
+                                    )
+                                }
                             );
-                        break;
-
-                        // case "array":
-                        //     result._value = Object.keys(result._value).reduce(
-                        //         (value, key) => {
-                        //             return Object.assign(
-                        //                 value,
-                        //                 {
-                        //                     [key]: result[key]._value,
-                        //                 }
-                        //             );
-                        //         }, result._value 
-                        //     );
-                        // break;
+        
+                        }else if(this._initialState.constructor == Array){
+                            Object.keys(newState._initialState).forEach(key => {
+                                newState[key] = newState[key].reducer(newState[key], action);
+                            });
+        
+                            return Object.assign(
+                                newState,
+                                {
+                                    _value:  Object.keys(newState._initialState).reduce(
+                                        (result, key) => {
+                                            return Object.assign(
+                                                result,
+                                                {
+                                                    [key]: newState[key]._value
+                                                }
+                                            );
+                                        }, {}
+                                    )
+                                }
+                            );
+                        }
                     }
                 }
             break;
 
-            case "object":
-                result = Object.keys(state).reduce(
-                    (result, key) => {
-                        return Object.assign(
-                            result,
-                            {
-                                [key]: new GlobalModel(
-                                    this._propertyKey, key, state[key]
-                                ).reducer(
-                                    state[key], action
-                                )
-                            }
-                        );
-                    }, {
-                        _propertyKey: this._propertyKey,
-                        _initialState: this._initialState,
-                        _actions: this._actions,
-                        _value: nextValue,
-                        _timestamp: new Date().toLocaleTimeString()
-                    }
-                );
-            break;
-
-            case "array":
-                let models = state.map((property, index) => {
-                    return new GlobalModel(
-                        this._propertyKey, index, property
-                    ).reducer(
-                        property, action
-                    );
-                });
-
-                result = Object.keys(models).reduce(
-                    (result, key) => {
-                        return Object.assign(result, {[key]: models[key]});
-                    }, {
-                        _propertyKey: this._propertyKey,
-                        _initialState: this._initialState,
-                        _actions: this._actions,
-                        _value: nextValue,
-                        _timestamp: new Date().toLocaleTimeString()
-                    }
-                );
-            break;
-
             default:
-                result = {
-                    _propertyKey: this._propertyKey,
-                    _initialState: this._initialState,
-                    _actions: this._actions,
-                    _value: nextValue,
-                    _timestamp: new Date().toLocaleTimeString()
-                };
+                if(newValue !== undefined){
+                    return Object.assign(
+                        newState,
+                        {
+                            _value: newValue
+                        }
+                    );
+                }
             break;
         }
-        return result;
+
+        return Object.assign({}, newState);
     };
 }
