@@ -73,14 +73,19 @@ export default class GlobalModel{
                 }else{
                     for(let key in this._structure){
                         // В структуре не может быть экзмпляра GlobalModel - проверки не будет
-                        this[key] = new GlobalModel(
-                            this._propertyKey,
-                            key,
-                            // this._structure[key] - дефолтное значение
-                            (this._initialState[key] === undefined) ?
-                                 this._structure[key] : this._initialState[key],
-                            this._structure[key]
-                        );
+                        if(!(this._structure[key] instanceof GlobalModel)){
+                            this[key] = new GlobalModel(
+                                this._propertyKey,
+                                key,
+                                // this._structure[key] - дефолтное значение
+                                (this._initialState[key] === undefined) ?
+                                     this._structure[key] : this._initialState[key],
+                                this._structure[key]
+                            );
+        
+                        }else{
+                            this[key] = this._structure[key];
+                        }
                     }
                 }
 
