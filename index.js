@@ -45,6 +45,26 @@ export default class GlobalModel{
                     }
                 }
             },
+            push: {
+                type: `PUSH`,
+                exec: (propertyKey, value)=>{
+                    return {
+                        type: `PUSH`,
+                        propertyKey,
+                        value
+                    }
+                }
+            },
+            drop: {
+                type: `DROP`,
+                exec: (propertyKey, index)=>{
+                    return {
+                        type: `DROP`,
+                        propertyKey,
+                        index
+                    }
+                }
+            },
         }
         
         // Структура
@@ -123,6 +143,23 @@ export default class GlobalModel{
                         newValue = action.value;
                     break;
         
+                    case state._actions.push.type:
+                        newValue = [...Object.keys(state._value).reduce(
+                            (a, k) => [...a, state._value[k]] , []
+                        ), action.value];
+                    break;
+        
+                    case state._actions.drop.type:
+                        if(action.index){
+                            newValue = Object.keys(state._value).reduce(
+                                (a, k) => [...a, state._value[k]] , []
+                            ).filter((v, i) => i != action.index);
+
+                        }else{
+                            newValue = "♱death_certificate♱";
+                        }
+                    break;
+        
                     case state._actions.toggle.type:
                         newValue = !state._value;
                     break;
@@ -131,9 +168,15 @@ export default class GlobalModel{
         }
         
         switch(typeof newState._value){
+            // Если текущая модель - объект
             case "object":
                 if(newValue !== undefined){
-                    if(typeof newValue === "object"){
+                    // Если новое значение модели - свидетельство о смерти, то соответственно прощаемся с ней
+                    if(newValue === "♱death_certificate♱"){
+                        console.log("♱death_certificate♱")
+                        return null;
+
+                    } else if(typeof newValue === "object" && newValue === newValue && newValue != null){
                         return new GlobalModel(
                             false,
                             newState._propertyKey,
@@ -196,12 +239,17 @@ export default class GlobalModel{
                                 {
                                     _value:  Object.keys(newState._initialState).reduce(
                                         (result, key) => {
-                                            return Object.assign(
-                                                result,
-                                                {
-                                                    [key]: newState[key]._value
-                                                }
-                                            );
+                                            if(newState[key] && newState[key]._value){
+                                                return Object.assign(
+                                                    result,
+                                                    {
+                                                        [key]: newState[key]._value
+                                                    }
+                                                );
+
+                                            }else{
+                                                return result;
+                                            }
                                         }, {}
                                     )
                                 }
