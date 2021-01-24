@@ -173,7 +173,6 @@ export default class GlobalModel{
                 if(newValue !== undefined){
                     // Если новое значение модели - свидетельство о смерти, то соответственно прощаемся с ней
                     if(newValue === "♱death_certificate♱"){
-                        console.log("♱death_certificate♱")
                         return null;
 
                     } else if(typeof newValue === "object" && newValue === newValue && newValue != null){
@@ -231,7 +230,9 @@ export default class GlobalModel{
         
                         }else if(this._initialState.constructor == Array){
                             Object.keys(newState._initialState).forEach(key => {
-                                newState[key] = newState[key].reducer(newState[key], action);
+                                if(newState[key] && newState[key].reducer){
+                                    newState[key] = newState[key].reducer(newState[key], action);
+                                }
                             });
         
                             return Object.assign(
