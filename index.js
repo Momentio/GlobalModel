@@ -5,10 +5,13 @@ export default class GlobalModel{
         initialState,
         structure
     ){
-        // console.log("INIT", parrentPropertyKey,
-        // key,
-        // initialState,
-        // structure)
+        // console.log(
+        //     "INIT",
+        //     parrentPropertyKey,
+        //     key,
+        //     initialState,
+        //     structure
+        // )
         // Уникальный ключ
         this._propertyKey = parrentPropertyKey ? `${parrentPropertyKey}/${key}` : key;
         
@@ -57,11 +60,11 @@ export default class GlobalModel{
             },
             drop: {
                 type: `DROP`,
-                exec: (propertyKey, index)=>{
+                exec: (propertyKey, callbackForChild)=>{
                     return {
                         type: `DROP`,
                         propertyKey,
-                        index
+                        callbackForChild
                     }
                 }
             },
@@ -73,7 +76,7 @@ export default class GlobalModel{
         // Значение
         this._value = this._initialState;
 
-        if(typeof this._initialState === "object"){
+        if(typeof this._initialState === "object" && this._initialState !== null && this._initialState === this._initialState){
             if(this._initialState.constructor == Object){
                 // Если отсутствует чёткая структура, то берём за основу this._initialState
                 if(!this._structure){
@@ -92,8 +95,23 @@ export default class GlobalModel{
 
                 }else{
                     for(let key in this._structure){
-                        // В структуре не может быть экзмпляра GlobalModel - проверки не будет
-                        if(!(this._structure[key] instanceof GlobalModel)){
+                        if(this._structure[key] instanceof GlobalModel){
+                            this[key] = this._structure[key];
+        
+                        /*
+                            Если дочернее свойство - экземпляр массива, 
+                            то не передаем в него в качестве изначального
+                            значения его структуру
+                        */
+                        }else if(this._structure[key] instanceof Array){
+                            this[key] = new GlobalModel(
+                                this._propertyKey,
+                                key,
+                                this._initialState[key] || [],
+                                this._structure[key]
+                            );
+
+                        }else{
                             this[key] = new GlobalModel(
                                 this._propertyKey,
                                 key,
@@ -102,9 +120,6 @@ export default class GlobalModel{
                                      this._structure[key] : this._initialState[key],
                                 this._structure[key]
                             );
-        
-                        }else{
-                            this[key] = this._structure[key];
                         }
                     }
                 }
@@ -150,10 +165,10 @@ export default class GlobalModel{
                     break;
         
                     case state._actions.drop.type:
-                        if(action.index){
+                        if(action.callbackForChild){
                             newValue = Object.keys(state._value).reduce(
                                 (a, k) => [...a, state._value[k]] , []
-                            ).filter((v, i) => i != action.index);
+                            ).filter(callbackForChild);
 
                         }else{
                             newValue = "♱death_certificate♱";
@@ -166,34 +181,61 @@ export default class GlobalModel{
                 }
             }
         }
-        
-        switch(typeof newState._value){
-            // Если текущая модель - объект
-            case "object":
-                if(newValue !== undefined){
-                    // Если новое значение модели - свидетельство о смерти, то соответственно прощаемся с ней
-                    if(newValue === "♱death_certificate♱"){
-                        return null;
 
-                    } else if(typeof newValue === "object" && newValue === newValue && newValue != null){
-                        return new GlobalModel(
-                            false,
-                            newState._propertyKey,
-                            newValue,
-                            newState._structure,
-                        ).reducer();
-                    }
+        if(typeof newState._value === "object"
+            && newState._value !== null
+            && newState._value === newState._value
+        ){
+            if(newValue !== undefined){
+                // Если новое значение модели - свидетельство о смерти, то соответственно прощаемся с ней
+                if(newValue === "♱death_certificate♱"){
+                    return null;
+
+                } else if(typeof newValue === "object" && newValue === newValue && newValue != null){
+                    return new GlobalModel(
+                        false,
+                        newState._propertyKey,
+                        newValue,
+                        newState._structure,
+                    ).reducer();
+                }
+
+            }else{
+                if(!newState._structure){
+                    Object.keys(newState._initialState).forEach(key => {
+                        if(newState[key] && newState[key].reducer){
+                            newState[key] = newState[key].reducer(newState[key], action);
+                        }
+                    });
+
+                    return Object.assign(
+                        newState,
+                        {
+                            _value:  Object.keys(newState._initialState).reduce(
+                                (result, key) => {
+                                    return Object.assign(
+                                        result,
+                                        {
+                                            [key]: newState[key]._value
+                                        }
+                                    );
+                                }, {}
+                            )
+                        }
+                    );
 
                 }else{
-                    if(!newState._structure){
-                        Object.keys(newState._initialState).forEach(key => {
-                            newState[key] = newState[key].reducer(newState[key], action);
+                    if(this._initialState.constructor == Object){
+                        Object.keys(newState._structure).forEach(key => {
+                            if(newState[key] && newState[key].reducer){
+                                newState[key] = newState[key].reducer(newState[key], action);
+                            }
                         });
     
                         return Object.assign(
                             newState,
                             {
-                                _value:  Object.keys(newState._initialState).reduce(
+                                _value:  Object.keys(newState._structure).reduce(
                                     (result, key) => {
                                         return Object.assign(
                                             result,
@@ -205,71 +247,47 @@ export default class GlobalModel{
                                 )
                             }
                         );
-
-                    }else{
-                        if(this._initialState.constructor == Object){
-                            Object.keys(newState._structure).forEach(key => {
+    
+                    }else if(this._initialState.constructor == Array){
+                        Object.keys(newState._initialState).forEach(key => {
+                            if(newState[key] && newState[key].reducer){
                                 newState[key] = newState[key].reducer(newState[key], action);
-                            });
-        
-                            return Object.assign(
-                                newState,
-                                {
-                                    _value:  Object.keys(newState._structure).reduce(
-                                        (result, key) => {
+                            }
+                        });
+    
+                        return Object.assign(
+                            newState,
+                            {
+                                _value:  Object.keys(newState._initialState).reduce(
+                                    (result, key) => {
+                                        if(newState[key] && newState[key]._value){
                                             return Object.assign(
                                                 result,
                                                 {
                                                     [key]: newState[key]._value
                                                 }
                                             );
-                                        }, {}
-                                    )
-                                }
-                            );
-        
-                        }else if(this._initialState.constructor == Array){
-                            Object.keys(newState._initialState).forEach(key => {
-                                if(newState[key] && newState[key].reducer){
-                                    newState[key] = newState[key].reducer(newState[key], action);
-                                }
-                            });
-        
-                            return Object.assign(
-                                newState,
-                                {
-                                    _value:  Object.keys(newState._initialState).reduce(
-                                        (result, key) => {
-                                            if(newState[key] && newState[key]._value){
-                                                return Object.assign(
-                                                    result,
-                                                    {
-                                                        [key]: newState[key]._value
-                                                    }
-                                                );
 
-                                            }else{
-                                                return result;
-                                            }
-                                        }, {}
-                                    )
-                                }
-                            );
-                        }
+                                        }else{
+                                            return result;
+                                        }
+                                    }, {}
+                                )
+                            }
+                        );
                     }
                 }
-            break;
+            }
 
-            default:
-                if(newValue !== undefined){
-                    return Object.assign(
-                        newState,
-                        {
-                            _value: newValue
-                        }
-                    );
-                }
-            break;
+        }else{
+            if(newValue !== undefined){
+                return Object.assign(
+                    newState,
+                    {
+                        _value: newValue
+                    }
+                );
+            }
         }
 
         return Object.assign({}, newState);
