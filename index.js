@@ -261,17 +261,12 @@ export default class GlobalModel{
                                 _value:  Object.keys(newState._initialState).reduce(
                                     (result, key) => {
                                         if(newState[key] && newState[key]._value){
-                                            return Object.assign(
-                                                result,
-                                                {
-                                                    [key]: newState[key]._value
-                                                }
-                                            );
+                                            return [...result, newState[key]._value];
 
                                         }else{
                                             return result;
                                         }
-                                    }, {}
+                                    }, []
                                 )
                             }
                         );
