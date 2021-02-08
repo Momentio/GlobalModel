@@ -1,290 +1,224 @@
-export default class GlobalModel{
-    constructor(
-        parrentPropertyKey,
-        key = "property",
-        initialState,
-        structure
-    ){
-        // console.log(
-        //     "INIT",
-        //     parrentPropertyKey,
-        //     key,
-        //     initialState,
-        //     structure
-        // )
-        // Уникальный ключ
-        this._propertyKey = parrentPropertyKey ? `${parrentPropertyKey}/${key}` : key;
-        
-        // Изначальное состояние
-        this._initialState = initialState;
-        
-        // Методы управления
-        this._actions = {
-            reset: {
-                type: `RESET`,
-                exec: (propertyKey)=>{
-                    return {
-                        type: `RESET`,
-                        propertyKey
-                    }
-                }
-            },
-            update: {
-                type: `UPDATE`,
-                exec: (propertyKey, value)=>{
-                    return {
-                        type: `UPDATE`,
-                        propertyKey,
-                        value
-                    }
-                }
-            },
-            toggle: {
-                type: `TOGGLE`,
-                exec: (propertyKey)=>{
-                    return {
-                        type: `TOGGLE`,
-                        propertyKey
-                    }
-                }
-            },
-            push: {
-                type: `PUSH`,
-                exec: (propertyKey, value)=>{
-                    return {
-                        type: `PUSH`,
-                        propertyKey,
-                        value
-                    }
-                }
-            },
-            drop: {
-                type: `DROP`,
-                exec: (propertyKey, callbackForChild)=>{
-                    return {
-                        type: `DROP`,
-                        propertyKey,
-                        callbackForChild
-                    }
-                }
-            },
-        }
-        
-        // Структура
-        this._structure = structure;
-
-        // Значение
-        this._value = this._initialState;
-
-        if(typeof this._initialState === "object" && this._initialState !== null && this._initialState === this._initialState){
-            if(this._initialState.constructor == Object){
-                // Если отсутствует чёткая структура, то берём за основу this._initialState
-                if(!this._structure){
-                    for(let key in this._initialState){
-                        if(!(this._initialState[key] instanceof GlobalModel)){
-                            this[key] = new GlobalModel(
-                                this._propertyKey,
-                                key,
-                                this._initialState[key]
-                            );
-        
-                        }else{
-                            this[key] = this._initialState[key];
-                        }
-                    }
-
-                }else{
-                    for(let key in this._structure){
-                        if(this._structure[key] instanceof GlobalModel){
-                            this[key] = this._structure[key];
-        
-                        /*
-                            Если дочернее свойство - экземпляр массива, 
-                            то не передаем в него в качестве изначального
-                            значения его структуру
-                        */
-                        }else if(this._structure[key] instanceof Array){
-                            this[key] = new GlobalModel(
-                                this._propertyKey,
-                                key,
-                                this._initialState[key] || [],
-                                this._structure[key]
-                            );
-
-                        }else{
-                            this[key] = new GlobalModel(
-                                this._propertyKey,
-                                key,
-                                // this._structure[key] - дефолтное значение
-                                (this._initialState[key] === undefined) ?
-                                     this._structure[key] : this._initialState[key],
-                                this._structure[key]
-                            );
-                        }
-                    }
-                }
-
-            }else if(this._initialState.constructor == Array){
-                for(let key in this._initialState){
-                    if(!(this._initialState[key] instanceof GlobalModel)){
-                        this[key] = new GlobalModel(
-                            this._propertyKey,
-                            key,
-                            this._initialState[key],
-                            this._structure ? this._structure[0] : undefined
-                        );
+function GlobalModel(
+    parrentKey,
+    key = "gProperty",
+    initialValue,
+    structure,
+    value,
+){
+    // Уникальный ключ
+    this.gKey = parrentKey ? `${parrentKey}/${key}` : key;
     
+    // Изначальное состояние
+    this.gInitialValue = initialValue;
+
+    // Значение
+    this.gValue = value !== undefined ? value : initialValue;
+
+    // Тип
+    this.gType = this.gTypeof(this.gValue);
+
+    // Структура
+    this.gStructure = structure;
+    
+    // Методы управления
+    this.gActions = {
+        reset: {
+            type: `RESET`,
+            func: (key) => ({type: `RESET`, key})
+        },
+        update: {
+            type: `UPDATE`,
+            func: (key, value) => ({type: `UPDATE`, key, value})
+        },
+        toggle: {
+            type: `TOGGLE`,
+            func: (key) => ({type: `TOGGLE`, key})
+        },
+        drop: {
+            type: `DROP`,
+            func: (key) => ({type: `DROP`, key})
+        },
+        unshift: {
+            type: `UNSHIFT`,
+            func: (key, ...value) => ({type: `UNSHIFT`, key, value})
+        },
+        push: {
+            type: `PUSH`,
+            func: (key, value) => ({type: `PUSH`, key, value})
+        },
+    }
+
+    this.gReset = this.gActions.reset.func;
+    this.gUpdate = this.gActions.update.func;
+    this.gToggle = this.gActions.toggle.func;
+    this.gDrop = this.gActions.drop.func;
+    this.gPush = this.gActions.push.func;
+    this.gUnshift = this.gActions.unshift.func;
+
+    switch(this.gType){
+        case "Object":
+            if(this.gStructure === undefined){
+                Object.keys(this.gValue).forEach(k => {
+                    this[k] = new GlobalModel(
+                        this.gKey,
+                        k,
+                        this.gValue[k],
+                        undefined,
+                        this.gValue !== undefined ? this.gValue[k] : undefined,
+                    )
+                });
+
+            }else{
+                Object.keys(this.gStructure).forEach(k => {
+                    let childStructure = this.gTypeof(this.gStructure[k]) === "Array"
+                        ?  [] : this.gStructure[k];
+
+                    this[k] = new GlobalModel(
+                        this.gKey,
+                        k,
+                        this.gValue[k] !== undefined ? this.gValue[k] : childStructure,
+                        this.gStructure[k],
+                        this.gValue !== undefined ? this.gValue[k] : undefined,
+                    )
+                });
+            }
+        break;
+
+        case "Array":
+            Object.keys(this.gValue).forEach(k => {
+                this[k] = new GlobalModel(
+                    this.gKey,
+                    k,
+                    this.gValue[k],
+                    this.gStructure !== undefined ? this.gStructure[0] : undefined,
+                    this.gValue !== undefined ? this.gValue[k] : undefined,
+                )
+            });
+        break;
+
+        case "GlobalModel":
+            throw new Error("GlobalModel: Нельзя передавать в GlobalModel его экземпляр!");
+    }
+};
+
+GlobalModel.prototype.gTypeof = function(object){
+    let type = Object.prototype.toString.call(object).slice(8, -1);
+
+    if(type === "Null") return "Number";
+
+    return type === "Object" ? object.constructor.name : type;
+}
+
+GlobalModel.prototype.gReducer = function(action){
+    let newValue;
+
+    if(action){
+        if(this.gKey === action.key){
+            switch(action.type){
+                case this.gActions.reset.type:
+                    newValue = this.gInitialValue;
+                break;
+    
+                case this.gActions.update.type:
+                    if(this.gType === this.gTypeof(action.value)){
+                        newValue = action.value;
+
                     }else{
-                        this[key] = this._initialState[key];
+                        console.warn(
+                            `GlobalModel: typeError - ${this.gType} != ${this.gTypeof(action.value)}`
+                        );
                     }
-                }
+                break;
+    
+                case this.gActions.toggle.type:
+                    if(this.gType === "Boolean"){
+                        newValue = !this.gValue;
+
+                    }else{
+                        console.warn(
+                            `GlobalModel: typeError - ${this.gType} != Boolean`
+                        );
+                    }
+                break;
+    
+                case this.gActions.drop.type:
+                    newValue = "♱death_certificate♱";
+                break;
+    
+                case this.gActions.unshift.type:
+                    if(this.gType === "Array"){
+                        newValue = [...action.value, ...this.gValue];
+
+                    }else{
+                        console.warn(
+                            `GlobalModel: typeError - ${this.gType} != Array`
+                        );
+                    }
+                break;
+    
+                case this.gActions.push.type:
+                    if(this.gType === "Array"){
+                        newValue = [...this.gValue,  action.value];
+
+                    }else{
+                        console.warn(
+                            `GlobalModel: typeError - ${this.gType} != Array`
+                        );
+                    }
+                break;
             }
         }
     }
 
-    // Возвращает общее состояние модели
-    reducer = (state = this, action) => {
-        let newState = Object.assign({}, state);
-        let newValue;
-
-        if(action){
-            if(state._propertyKey === action.propertyKey){
-                switch(action.type){
-                    case state._actions.reset.type:
-                        newValue = state._initialState;
-                    break;
-        
-                    case state._actions.update.type:
-                        newValue = action.value;
-                    break;
-        
-                    case state._actions.push.type:
-                        newValue = [...Object.keys(state._value).reduce(
-                            (a, k) => [...a, state._value[k]] , []
-                        ), action.value];
-                    break;
-        
-                    case state._actions.drop.type:
-                        if(action.callbackForChild){
-                            newValue = Object.keys(state._value).reduce(
-                                (a, k) => [...a, state._value[k]] , []
-                            ).filter(callbackForChild);
+    if(newValue === undefined){
+        switch(this.gType){
+            case "Object":
+                if(this.gStructure === undefined){
+                    newValue = Object.keys(this.gValue).reduce((o, k) => {
+                        if(this[k] && this[k].gReducer){
+                            let childGM = this[k].gReducer(action);
+    
+                            return childGM ? {...o, [k]: childGM.gValue} : o;
 
                         }else{
-                            newValue = "♱death_certificate♱";
+                            return o;
                         }
-                    break;
-        
-                    case state._actions.toggle.type:
-                        newValue = !state._value;
-                    break;
-                }
-            }
-        }
-
-        if(typeof newState._value === "object"
-            && newState._value !== null
-            && newState._value === newState._value
-        ){
-            if(newValue !== undefined){
-                // Если новое значение модели - свидетельство о смерти, то соответственно прощаемся с ней
-                if(newValue === "♱death_certificate♱"){
-                    return null;
-
-                } else if(typeof newValue === "object" && newValue === newValue && newValue != null){
-                    return new GlobalModel(
-                        false,
-                        newState._propertyKey,
-                        newValue,
-                        newState._structure,
-                    ).reducer();
-                }
-
-            }else{
-                if(!newState._structure){
-                    Object.keys(newState._initialState).forEach(key => {
-                        if(newState[key] && newState[key].reducer){
-                            newState[key] = newState[key].reducer(newState[key], action);
-                        }
-                    });
-
-                    return Object.assign(
-                        newState,
-                        {
-                            _value:  Object.keys(newState._initialState).reduce(
-                                (result, key) => {
-                                    return Object.assign(
-                                        result,
-                                        {
-                                            [key]: newState[key]._value
-                                        }
-                                    );
-                                }, {}
-                            )
-                        }
-                    );
-
+                    }, {});
+    
                 }else{
-                    if(this._initialState.constructor == Object){
-                        Object.keys(newState._structure).forEach(key => {
-                            if(newState[key] && newState[key].reducer){
-                                newState[key] = newState[key].reducer(newState[key], action);
-                            }
-                        });
+                    newValue = Object.keys(this.gStructure).reduce((o, k) => {
+                        if(this[k] && this[k].gReducer){
+                            let childGM = this[k].gReducer(action);
     
-                        return Object.assign(
-                            newState,
-                            {
-                                _value:  Object.keys(newState._structure).reduce(
-                                    (result, key) => {
-                                        return Object.assign(
-                                            result,
-                                            {
-                                                [key]: newState[key]._value
-                                            }
-                                        );
-                                    }, {}
-                                )
-                            }
-                        );
-    
-                    }else if(this._initialState.constructor == Array){
-                        Object.keys(newState._initialState).forEach(key => {
-                            if(newState[key] && newState[key].reducer){
-                                newState[key] = newState[key].reducer(newState[key], action);
-                            }
-                        });
-    
-                        return Object.assign(
-                            newState,
-                            {
-                                _value:  Object.keys(newState._initialState).reduce(
-                                    (result, key) => {
-                                        if(newState[key] && newState[key]._value){
-                                            return [...result, newState[key]._value];
-
-                                        }else{
-                                            return result;
-                                        }
-                                    }, []
-                                )
-                            }
-                        );
-                    }
+                            return childGM ? {...o, [k]: childGM.gValue} : o;
+                            
+                        }else{
+                            return o;
+                        }
+                    }, {});
                 }
-            }
+            break;
+    
+            case "Array":
+                newValue = Object.keys(this.gValue).reduce((a, k) => {
+                    if(this[k] && this[k].gReducer){
+                        let childGM = this[k].gReducer(action);
 
-        }else{
-            if(newValue !== undefined){
-                return Object.assign(
-                    newState,
-                    {
-                        _value: newValue
+                        return childGM ? [...a, childGM.gValue] : a;
+                    }else{
+                        return a;
                     }
-                );
-            }
+                }, []);
+            break;
         }
 
-        return Object.assign({}, newState);
-    };
+    }else if(newValue === "♱death_certificate♱"){
+        return null;
+    }
+    
+    return new GlobalModel(
+        false, this.gKey, this.gInitialValue, this.gStructure, newValue
+    );
 }
+
+module.exports = GlobalModel ;
