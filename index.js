@@ -46,6 +46,14 @@ function GlobalModel(
             type: `PUSH`,
             func: (key, value) => ({type: `PUSH`, key, value})
         },
+        filter: {
+            type: `FILTER`,
+            func: (key, callback) => ({type: `FILTER`, key, callback})
+        },
+        sort: {
+            type: `SORT`,
+            func: (key, callback) => ({type: `SORT`, key, callback})
+        },
     }
 
     this.gReset = this.gActions.reset.func;
@@ -54,6 +62,8 @@ function GlobalModel(
     this.gDrop = this.gActions.drop.func;
     this.gPush = this.gActions.push.func;
     this.gUnshift = this.gActions.unshift.func;
+    this.gFilter = this.gActions.filter.func;
+    this.gSort = this.gActions.sort.func;
 
     switch(this.gType){
         case "Object":
@@ -159,6 +169,28 @@ GlobalModel.prototype.gReducer = function(action){
                 case this.gActions.push.type:
                     if(this.gType === "Array"){
                         newValue = [...this.gValue,  action.value];
+
+                    }else{
+                        console.warn(
+                            `GlobalModel: typeError - ${this.gType} != Array`
+                        );
+                    }
+                break;
+    
+                case this.gActions.filter.type:
+                    if(this.gType === "Array"){
+                        newValue = this.gValue.filter(action.callback);
+
+                    }else{
+                        console.warn(
+                            `GlobalModel: typeError - ${this.gType} != Array`
+                        );
+                    }
+                break;
+    
+                case this.gActions.sort.type:
+                    if(this.gType === "Array"){
+                        newValue = this.gValue.sort(action.callback);
 
                     }else{
                         console.warn(
