@@ -114,8 +114,6 @@ function GlobalModel(
 GlobalModel.prototype.gTypeof = function(object){
     let type = Object.prototype.toString.call(object).slice(8, -1);
 
-    if(type === "Null") return "Number";
-
     return type === "Object" ? object.constructor.name : type;
 }
 
@@ -131,6 +129,12 @@ GlobalModel.prototype.gReducer = function(action){
     
                 case this.gActions.update.type:
                     if(this.gType === this.gTypeof(action.value)){
+                        newValue = action.value;
+
+                    }else if(this.gType === "Null"
+                                && this.gTypeof(action.value) === "String"
+                                    || this.gTypeof(action.value) === "Number"
+                                    || this.gTypeof(action.value) === "Boolean"){
                         newValue = action.value;
 
                     }else{
