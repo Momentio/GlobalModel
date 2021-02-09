@@ -1,0 +1,23 @@
+{
+  "name": "global-model",
+  "version": "1.0.0",
+  "description": "Global model",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Momentio/GlobalModel.git"
+  },
+  "keywords": [
+    "GlobalModel",
+    "Momentio"
+  ],
+  "author": "Momentio",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Momentio/GlobalModel/issues"
+  },
+  "homepage": "https://github.com/Momentio/GlobalModel#readme"
+}
