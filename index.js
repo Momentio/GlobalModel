@@ -86,7 +86,7 @@ function GlobalModel(
                     this[k] = new GlobalModel(
                         this.gKey,
                         k,
-                        this.gInitialValue[k] !== undefined ? this.gInitialValue[k] : childStructure,
+                        this.gValue[k] !== undefined ? this.gValue[k] : childStructure,
                         this.gStructure[k],
                         this.gValue !== undefined ? this.gValue[k] : undefined,
                     )
@@ -257,4 +257,4 @@ GlobalModel.prototype.gReducer = function(action){
     );
 }
 
-module.exports = GlobalModel ;
+module.exports = GlobalModel;
