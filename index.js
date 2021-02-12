@@ -24,35 +24,35 @@ function GlobalModel(
     this.gActions = {
         reset: {
             type: `RESET`,
-            func: (key) => ({type: `RESET`, key})
+            func: () => ({type: `RESET`, gKey: this.gKey })
         },
         update: {
             type: `UPDATE`,
-            func: (key, value) => ({type: `UPDATE`, key, value})
+            func: (value) => ({type: `UPDATE`, gKey: this.gKey, value})
         },
         toggle: {
             type: `TOGGLE`,
-            func: (key) => ({type: `TOGGLE`, key})
+            func: () => ({type: `TOGGLE`, gKey: this.gKey})
         },
         drop: {
             type: `DROP`,
-            func: (key) => ({type: `DROP`, key})
+            func: () => ({type: `DROP`, gKey: this.gKey})
         },
         unshift: {
             type: `UNSHIFT`,
-            func: (key, ...value) => ({type: `UNSHIFT`, key, value})
+            func: (...value) => ({type: `UNSHIFT`, gKey: this.gKey, value})
         },
         push: {
             type: `PUSH`,
-            func: (key, value) => ({type: `PUSH`, key, value})
+            func: (value) => ({type: `PUSH`, gKey: this.gKey, value})
         },
         filter: {
             type: `FILTER`,
-            func: (key, callback) => ({type: `FILTER`, key, callback})
+            func: (callback) => ({type: `FILTER`, gKey: this.gKey, callback})
         },
         sort: {
             type: `SORT`,
-            func: (key, callback) => ({type: `SORT`, key, callback})
+            func: (callback) => ({type: `SORT`, gKey: this.gKey, callback})
         },
     }
 
@@ -134,7 +134,7 @@ GlobalModel.prototype.gReducer = function(action){
     let newValue;
 
     if(action){
-        if(this.gKey === action.key){
+        if(this.gKey === action.gKey){
             switch(action.type){
                 case this.gActions.reset.type:
                     newValue = this.gInitialValue;
