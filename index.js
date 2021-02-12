@@ -128,7 +128,10 @@ GlobalModel.prototype.gReducer = function(action){
                 break;
     
                 case this.gActions.update.type:
-                    if(this.gType === this.gTypeof(action.value)){
+                    if(this.gType === "Undefined"){
+                        newValue = action.value;
+                        
+                    } else if(this.gType === this.gTypeof(action.value)){
                         newValue = action.value;
 
                     }else if(this.gType === "Null"
