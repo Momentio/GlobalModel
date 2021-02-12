@@ -1,6 +1,6 @@
 {
   "name": "global-model",
-  "version": "0.0.1",
+  "version": "1.0.1",
   "description": "Global model",
   "main": "index.js",
   "scripts": {
