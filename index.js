@@ -67,6 +67,10 @@ function GlobalModel(
 
     switch(this.gType){
         case "Object":
+            /**
+             *  Если структура объекта - контролируемая, то превращаем его дочерей в послушные
+             * экземпляры GlobalModel
+             */
             if(this.gStructure === undefined){
                 Object.keys(this.gValue).forEach(k => {
                     this[k] = new GlobalModel(
@@ -78,32 +82,41 @@ function GlobalModel(
                     )
                 });
 
-            }else{
-                Object.keys(this.gStructure).forEach(k => {
-                    let childStructure = this.gTypeof(this.gStructure[k]) === "Array"
-                        ?  [] : this.gStructure[k];
-
-                    this[k] = new GlobalModel(
-                        this.gKey,
-                        k,
-                        this.gValue[k] !== undefined ? this.gValue[k] : childStructure,
-                        this.gStructure[k],
-                        this.gValue !== undefined ? this.gValue[k] : undefined,
-                    )
-                });
+            }else {
+                if(this.gStructure !== GlobalModel.structures.Uncontrolled){
+                    Object.keys(this.gStructure).forEach(k => {
+                        let childStructure = this.gTypeof(this.gStructure[k]) === "Array"
+                            ?  [] : this.gStructure[k];
+    
+                        this[k] = new GlobalModel(
+                            this.gKey,
+                            k,
+                            this.gValue[k] !== undefined ? this.gValue[k] : childStructure,
+                            this.gStructure[k],
+                            this.gValue !== undefined ? this.gValue[k] : undefined,
+                        )
+                    });
+                }
             }
         break;
 
         case "Array":
-            Object.keys(this.gValue).forEach(k => {
-                this[k] = new GlobalModel(
-                    this.gKey,
-                    k,
-                    this.gValue[k],
-                    this.gStructure !== undefined ? this.gStructure[0] : undefined,
-                    this.gValue !== undefined ? this.gValue[k] : undefined,
-                )
-            });
+            /**
+             *  Если структура массива - контролируемая, то превращаем его дочерей в послушные
+             * экземпляры GlobalModel
+             */
+            
+            if(this.gStructure !== GlobalModel.structures.Uncontrolled){
+                Object.keys(this.gValue).forEach(k => {
+                    this[k] = new GlobalModel(
+                        this.gKey,
+                        k,
+                        this.gValue[k],
+                        this.gStructure !== undefined ? this.gStructure[0] : undefined,
+                        this.gValue !== undefined ? this.gValue[k] : undefined,
+                    )
+                });
+            }
         break;
 
         case "GlobalModel":
@@ -135,12 +148,17 @@ GlobalModel.prototype.gReducer = function(action){
                         newValue = action.value;
 
                     }else if(this.gType === "Null"
-                                && this.gTypeof(action.value) === "String"
-                                    || this.gTypeof(action.value) === "Number"
-                                    || this.gTypeof(action.value) === "Boolean"){
+                        && (
+                            this.gTypeof(action.value) === "String"
+                            || this.gTypeof(action.value) === "Number"
+                            || this.gTypeof(action.value) === "Boolean"
+                        )
+                    ){
                         newValue = action.value;
 
-                    }else{
+                    }else if(this.gStructure === GlobalModel.structures.Uncontrolled){
+                        newValue = action.value;
+                    }else {
                         console.warn(
                             `GlobalModel: typeError - ${this.gType} != ${this.gTypeof(action.value)}`
                         );
@@ -214,7 +232,7 @@ GlobalModel.prototype.gReducer = function(action){
             case "Object":
                 if(this.gStructure === undefined){
                     newValue = Object.keys(this.gValue).reduce((o, k) => {
-                        if(this[k] && this[k].gReducer){
+                        if(this[k] && this[k].gReducer || this[k].gStructure){
                             let childGM = this[k].gReducer(action);
     
                             return childGM ? {...o, [k]: childGM.gValue} : o;
@@ -225,29 +243,33 @@ GlobalModel.prototype.gReducer = function(action){
                     }, {});
     
                 }else{
-                    newValue = Object.keys(this.gStructure).reduce((o, k) => {
-                        if(this[k] && this[k].gReducer){
-                            let childGM = this[k].gReducer(action);
-    
-                            return childGM ? {...o, [k]: childGM.gValue} : o;
-                            
-                        }else{
-                            return o;
-                        }
-                    }, {});
+                    if(this.gStructure !== GlobalModel.structures.Uncontrolled){
+                        newValue = Object.keys(this.gStructure).reduce((o, k) => {
+                            if(this[k] && this[k].gReducer || this[k].gStructure){
+                                let childGM = this[k].gReducer(action);
+        
+                                return childGM ? {...o, [k]: childGM.gValue} : o;
+                                
+                            }else{
+                                return o;
+                            }
+                        }, {});
+                    }
                 }
             break;
     
             case "Array":
-                newValue = Object.keys(this.gValue).reduce((a, k) => {
-                    if(this[k] && this[k].gReducer){
-                        let childGM = this[k].gReducer(action);
-
-                        return childGM ? [...a, childGM.gValue] : a;
-                    }else{
-                        return a;
-                    }
-                }, []);
+                if(this.gStructure !== GlobalModel.structures.Uncontrolled){
+                    newValue = Object.keys(this.gValue).reduce((a, k) => {
+                        if(this[k] && this[k].gReducer || this[k].gStructure){
+                            let childGM = this[k].gReducer(action);
+    
+                            return childGM ? [...a, childGM.gValue] : a;
+                        }else{
+                            return a;
+                        }
+                    }, []);
+                }
             break;
         }
 
@@ -259,5 +281,9 @@ GlobalModel.prototype.gReducer = function(action){
         false, this.gKey, this.gInitialValue, this.gStructure, newValue
     );
 }
+
+GlobalModel.structures = {
+    Uncontrolled: "Uncontrolled"
+};
 
 module.exports = GlobalModel;
